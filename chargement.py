@@ -1,7 +1,7 @@
 import string
 import os
 import shutil
-import numpy
+import numpy as np
 import matplotlib.pyplot as plt
 
 class dossier:
@@ -88,30 +88,31 @@ class dossier:
 
 class traitement:
 	"gere le traitement des data mise en arborescence par la classe dossier"
-	def __init__(self, annee, mois, jour,temps=[],signal=[],nomfigure=''):
+	def __init__(self, annee, mois, jour,temps=[],signal=[],nomfigure='',abscisse=''):
         	self.annee = str(annee)
         	self.mois = str(mois).zfill(2)
 		self.jour = str(jour).zfill(2)
 		self.mypath = self.path()
 		self.atraiter = self.fichieratraiter()
 		self.temp = self.temporel()
-		
+
 	def path(self):
 		mypath = '/home/cyril/Documents/data_pompe_sonde/'+str(self.annee)+'/'+str(self.mois)+'/'+str(self.jour)
 
 		return mypath
 	
-	def plotter(self,temps,signal,nomfigure):
+	def plotter(self,temps,signal,nomfigure,abscisse,xlim):
 
 		fig=plt.figure()
 
 		ax1 = fig.add_subplot(111)
 		plt.plot(temps,signal,lw=2,color=[1,0.5,0])
 		ax1.set_title(str(nomfigure),position=(0.5,1.05))
-		ax1.set_xlabel('Temps (ps)')
+		ax1.set_xlabel(str(abscisse))
 		ax1.set_ylabel('Amplitude (Units)')
-		
-		plt.savefig(nomfigure,bbox_inches='tight', dpi=150, transparent=False)
+		ax1.set_xlim(xlim)
+
+		plt.savefig(str(nomfigure),bbox_inches='tight', dpi=150, transparent=False)
 
 	def fichieratraiter(self):
 		a_traiter=[]
@@ -124,6 +125,7 @@ class traitement:
 		return a_traiter
 		
 	def temporel(self):
+		xlim=[]
 		control=[]
 		tracetemp={}
 		for dirpath_num in range(len(self.atraiter)):
@@ -132,8 +134,10 @@ class traitement:
 				if ('pdf' in fichier_path)==False:
 					if 'dat2' in fichier_path:
 						fichier_image=fichier_path[:-5]+'.pdf'
+						fichier_image_FFT=fichier_path[:-5]+'_FFT.pdf'
 					else:
 						fichier_image=fichier_path[:-4]+'.pdf'
+						fichier_image_FFT=fichier_path[:-4]+'_FFT.pdf'
 					fichier=open(fichier_path,'r')
 					fichier_forme=fichier.readlines()
 					time=[]
@@ -145,19 +149,30 @@ class traitement:
     						si=float(ligne[coupe_debut+1:coupe_debut+11])
     						time.append(ti)
     						signal.append(si)
-					tracetemp[fichier_path]=(time,signal,fichier_image)
+					xlim=[0,time[-1:][0]]
+					tracetemp[fichier_path]=(time,signal,fichier_image,'Temps (ps)',xlim,fichier_image_FFT)
 		return tracetemp	
 
+	def frequentiel(self):
+		xlim=[0,50]
+		tracefreq={}
+		for key in self.temp:
+    			vecteur=self.temp[key]
+    			t=vecteur[0]
+			s=vecteur[1]
+			nom=vecteur[5]
+			Y_FFT = np.fft.fft(s)
+			N = len(Y_FFT)/2+1
+			dt = t[1] - t[0]
+			fa = 1.0/dt # scan frequency
+			X = np.linspace(0, fa/2, N, endpoint=True)
 
-	#def frequentiel(self):
-	#	Y = fft.fft(s)
-	#	N = len(Y)/2+1
-	#	dt = t[1] - t[0]
-	#	fa = 1.0/dt # scan frequency
-	#	X = linspace(0, fa/2, N, endpoint=True)
-#
-##		hann = hanning(len(s))
-#		Yhann = fft.fft(hann*s)
+			hann = np.hanning(len(s))
+			Yhann = np.fft.fft(hann*s)
+
+			S_FFT = 2.0*abs(Yhann[:N])/N
+			tracefreq[key]=(1000*X,S_FFT,nom,'Frequence (GHz)',xlim)
+		return tracefreq
 
 	
 
